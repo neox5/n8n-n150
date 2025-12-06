@@ -1,0 +1,8 @@
+# environment variables
+.env
+
+# volumen mounts
+data
+
+# snap file
+snap.txt
