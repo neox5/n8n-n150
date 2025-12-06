@@ -1,0 +1,10 @@
+[Unit]
+Description=n8n Backup Job
+After=n8n-stack.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/n8n-n150
+ExecStart=/root/n8n-n150/backup/backup-n8n.sh
+StandardOutput=append:/root/n8n-n150/logs/backup.log
+StandardError=append:/root/n8n-n150/logs/backup.log

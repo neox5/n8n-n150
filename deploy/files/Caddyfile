@@ -1,0 +1,14 @@
+# Internal-only reverse proxy for n8n
+# No automatic HTTPS - internal network deployment
+
+{
+    auto_https off
+}
+
+:80 {
+    reverse_proxy n8n:5678
+    
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

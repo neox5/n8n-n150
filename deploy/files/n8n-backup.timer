@@ -1,0 +1,9 @@
+[Unit]
+Description=n8n Hourly Backup Timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
