@@ -1,8 +1,16 @@
-# environment variables
+# Real secrets
 .env
+restic/restic.env
 
-# volumen mounts
-data
+# Runtime state (never commit)
+data/
+backup-src/
+restic-repo/
+
+# Logs
+logs/
+*.log
 
 # snap file
 snap.txt
+
