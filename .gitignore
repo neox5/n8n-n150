@@ -12,5 +12,5 @@ restic-repo/
 logs/
 *.log
 
-# snap file
-snap.txt
+# snp file
+snp.txt
