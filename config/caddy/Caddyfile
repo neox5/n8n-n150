@@ -1,0 +1,19 @@
+# n8n service
+n8n.n150.local {
+    reverse_proxy n8n:5678
+}
+
+# Grafana monitoring
+grafana.n150.local {
+    reverse_proxy grafana:3000
+}
+
+# VictoriaMetrics (Prometheus-compatible)
+prom.n150.local {
+    reverse_proxy victoriametrics:8428
+}
+
+# Main domain redirect to n8n
+n150.local, n150 {
+    redir https://n8n.n150.local{uri}
+}
