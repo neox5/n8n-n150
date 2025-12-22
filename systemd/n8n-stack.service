@@ -1,5 +1,5 @@
 [Unit]
-Description=n8n stack (podman-compose)
+Description=n8n stack (podman compose)
 Requires=n150-net.service
 After=n150-net.service
 
@@ -7,8 +7,8 @@ After=n150-net.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/n8n
-ExecStart=/usr/bin/podman-compose -f compose/n8n.yml up -d
-ExecStop=/usr/bin/podman-compose -f compose/n8n.yml down
+ExecStart=/usr/bin/podman compose -f compose/n8n.yml up -d
+ExecStop=/usr/bin/podman compose -f compose/n8n.yml down
 TimeoutStartSec=0
 TimeoutStopSec=120
 

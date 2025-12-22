@@ -41,7 +41,7 @@ check_base_prereqs() {
 # Component may define:
 #   required_cmds=( ...)
 check_component_prereqs() {
-  if [[ "${#required_cmds[@]:-0}" -gt 0 ]]; then
+  if declare -p required_cmds >/dev/null 2>&1; then
     require_cmd "${required_cmds[@]}"
   fi
 }

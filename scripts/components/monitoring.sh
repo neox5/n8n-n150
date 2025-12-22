@@ -20,7 +20,6 @@ supported_verbs=(
 
 required_cmds=(
   podman
-  podman-compose
   rsync
 )
 
