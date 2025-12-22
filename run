@@ -33,15 +33,14 @@ source "${_root_dir}/scripts/lib/common.sh"
 source "${_root_dir}/scripts/lib/verbs.sh"
 
 usage() {
+  local components
+  components=$(discover_components | tr '\n' ', ' | sed 's/, $//')
+  
   printf "%s\n" \
-    "Usage:" \
-    "  run <component> <verb> [args]" \
+    "Usage: run <component> <command> [options]" \
     "" \
-    "Components:" \
-    "  sys" \
-    "" \
-    "Verbs:" \
-    "  help, init, cleanup"
+    "Available components: ${components}" \
+    "Run 'run <component> help' for component-specific commands"
 }
 
 if [[ "${1:-}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" || "${#}" -eq 0 ]]; then

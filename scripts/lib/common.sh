@@ -111,6 +111,14 @@ installed_count() {
   find "${STATE_DIR}" -name "*.lock" 2>/dev/null | wc -l
 }
 
+discover_components() {
+  local comp
+  for comp in "${ROOT_DIR}/scripts/components/"*.sh; do
+    [[ -f "$comp" ]] || continue
+    basename "$comp" .sh
+  done | sort
+}
+
 readonly -a BASE_CMDS=(
   bash
   sed

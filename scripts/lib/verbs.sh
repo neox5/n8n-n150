@@ -14,14 +14,10 @@ has_fn() {
 }
 
 default_help() {
-  echo "Usage:"
-  echo "  run ${COMPONENT} <verb>"
-  echo ""
-  echo "Verbs:"
-  echo "  help"
+  echo "${COMPONENT} commands:"
   local v
   for v in "${supported_verbs[@]}"; do
-    echo "  ${v}"
+    printf "  %-12s\n" "${v}"
   done
 }
 
