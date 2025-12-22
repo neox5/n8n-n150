@@ -2,10 +2,9 @@
 set -euo pipefail
 
 verb_supported_by_component() {
-  local v="$1"
   local sv
   for sv in "${supported_verbs[@]:-}"; do
-    [[ "$sv" == "$v" ]] && return 0
+    [[ "$sv" == "$VERB" ]] && return 0
   done
   return 1
 }
@@ -15,9 +14,11 @@ has_fn() {
 }
 
 default_help() {
-  echo "Component: ${component_name}"
+  echo "Usage:"
+  echo "  run ${COMPONENT} <verb>"
   echo ""
-  echo "Supported verbs:"
+  echo "Verbs:"
+  echo "  help"
   local v
   for v in "${supported_verbs[@]}"; do
     echo "  ${v}"
@@ -25,9 +26,7 @@ default_help() {
 }
 
 handle_sys_component() {
-  local verb="$1"; shift || true
-  
-  case "$verb" in
+  case "$VERB" in
     init)
       ensure_dirs 0755 \
         "${STATE_DIR}" \
@@ -46,15 +45,13 @@ handle_sys_component() {
         "${SHARE_ROOT}"
       ;;
     *)
-      die "${verb} is not implemented by ${component_name}"
+      die "${VERB} is not implemented by ${COMPONENT}"
       ;;
   esac
 }
 
 dispatch() {
-  local verb="$1"; shift || true
-
-  if [[ "$verb" == "help" ]]; then
+  if [[ "$VERB" == "help" ]]; then
     if has_fn c_help; then
       c_help "$@"
       return 0
@@ -63,22 +60,22 @@ dispatch() {
     return 0
   fi
 
-  verb_supported_by_component "$verb" || \
-    die "${verb} is not supported by ${component_name}"
+  verb_supported_by_component || \
+    die "${VERB} is not supported by ${COMPONENT}"
 
   check_base_prereqs
   check_component_prereqs
 
-  if [[ "${component_name}" == "sys" ]]; then
-    handle_sys_component "$verb" "$@"
+  if [[ "${COMPONENT}" == "sys" ]]; then
+    handle_sys_component "$@"
     return 0
   fi
 
-  local hook="c_${verb//-/_}"
+  local hook="c_${VERB//-/_}"
   if has_fn "$hook"; then
     "$hook" "$@"
     return 0
   fi
 
-  die "${verb} is not implemented by ${component_name}"
+  die "${VERB} is not implemented by ${COMPONENT}"
 }

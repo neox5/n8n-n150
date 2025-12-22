@@ -34,18 +34,18 @@ if [[ "${1:-}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" || "${#}" -
   exit 0
 fi
 
-component="${1:-}"; shift || true
-verb="${1:-}"; shift || true
+readonly COMPONENT="${1:-}"
+readonly VERB="${2:-help}"
+shift 2 || true
 
-[[ -n "${component}" ]] || die "missing component"
-[[ -n "${verb}" ]] || die "missing verb"
+[[ -n "${COMPONENT}" ]] || die "missing component"
 
-component_file="${_root_dir}/scripts/components/${component}.sh"
-[[ -f "$component_file" ]] || die "unknown component: ${component}"
+component_file="${_root_dir}/scripts/components/${COMPONENT}.sh"
+[[ -f "$component_file" ]] || die "unknown component: ${COMPONENT}"
 
 source "$component_file"
 
-[[ "${component_name:-}" == "${component}" ]] || \
-  die "component spec mismatch: expected ${component}, got ${component_name:-<unset>}"
+[[ "${component_name:-}" == "${COMPONENT}" ]] || \
+  die "component spec mismatch: expected ${COMPONENT}, got ${component_name:-<unset>}"
 
-dispatch "$verb" "$@"
+dispatch "$@"
