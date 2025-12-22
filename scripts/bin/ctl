@@ -23,12 +23,7 @@ usage() {
     "  net, app, monitoring, proxy, backup" \
     "" \
     "Verbs:" \
-    "  install, secrets, secrets-deploy, start, stop, restart, status, check, run" \
-    "" \
-    "Examples:" \
-    "  ctl net install" \
-    "  ctl app start" \
-    "  ctl backup run"
+    "  install, uninstall, secrets, secrets-deploy, start, stop, restart, status, check, run"
 }
 
 if [[ "${1:-}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" || "${#}" -eq 0 ]]; then
@@ -45,11 +40,9 @@ verb="${1:-}"; shift || true
 component_file="${_root_dir}/scripts/components/${component}.sh"
 [[ -f "$component_file" ]] || die "unknown component: ${component}"
 
-# Source component spec (defines metadata + optional hooks)
 # shellcheck source=/dev/null
 source "$component_file"
 
-# Basic sanity: component_name must match
 [[ "${component_name:-}" == "${component}" ]] || die "component spec mismatch: expected ${component}, got ${component_name:-<unset>}"
 
 dispatch "$verb" "$@"

@@ -10,12 +10,13 @@ set -euo pipefail
 #   optional: unit_names (array)
 #   optional: compose_file (repo-relative or absolute)
 #   optional: compose_project
+#   optional: requires_root_verbs (array)
 #
-# Hook naming: c_<verb>, e.g., c_install, c_start, ...
+# Hook naming: c_<verb>, e.g., c_install, c_secrets_deploy ...
 
-# Global verb set (used for help/validation; components still declare supported_verbs)
 readonly -a N150_GLOBAL_VERBS=(
   install
+  uninstall
   secrets
   secrets-deploy
   start
@@ -59,7 +60,6 @@ default_compose() {
   [[ -n "${compose_file:-}" ]] || return 1
   require_cmd podman-compose
 
-  # Resolve compose file to an absolute path.
   local cf="$compose_file"
   if [[ "$cf" != /* ]]; then
     cf="${ROOT_DIR}/${cf}"
@@ -83,18 +83,18 @@ default_compose() {
 dispatch() {
   local verb="$1"; shift || true
 
-  # Component-level verb allowlist
   verb_supported_by_component "$verb" || die "${verb} is not supported by ${component_name}"
+
+  # Enforce root where component requests it
+  require_root_for_verb "$verb"
 
   local hook="c_${verb//-/_}"   # secrets-deploy -> c_secrets_deploy
 
-  # 1) Component hook wins
   if has_fn "$hook"; then
     "$hook" "$@"
     return 0
   fi
 
-  # 2) Shared defaults (if lifecycle_mode indicates)
   case "${lifecycle_mode:-custom}" in
     systemd)
       if default_systemd "$verb"; then return 0; fi
@@ -108,6 +108,5 @@ dispatch() {
       ;;
   esac
 
-  # 3) Hard default
   die "${verb} is not implemented by ${component_name}"
 }

@@ -12,7 +12,7 @@ help:
 		"  net, app, monitoring, proxy, backup" \
 		"" \
 		"Verbs:" \
-		"  install, secrets, secrets-deploy, start, stop, restart, status, check, run" \
+		"  install, uninstall, secrets, secrets-deploy, start, stop, restart, status, check, run" \
 		"" \
 		"Examples:" \
 		"  make net-install" \
@@ -22,7 +22,5 @@ help:
 
 .PHONY: help
 
-# Generic noun-verb dispatcher.
-# Matches targets like "app-start", "proxy-install", "backup-run".
 %-%:
 	@./scripts/bin/ctl $(firstword $(subst -, ,$@)) $(word 2,$(subst -, ,$@))
