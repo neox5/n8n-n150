@@ -4,6 +4,8 @@ set -euo pipefail
 supported_verbs=(
   install
   uninstall
+  start
+  stop
 )
 
 readonly NET_COMPOSE_SRC="${ROOT_DIR}/compose/network.yml"
@@ -40,4 +42,12 @@ c_uninstall() {
     "${NET_UNIT_DST}"
   
   remove_lock
+}
+
+c_start() {
+  systemd_start_unit "${NET_UNIT_DST}"
+}
+
+c_stop() {
+  systemd_stop_unit "${NET_UNIT_DST}"
 }
