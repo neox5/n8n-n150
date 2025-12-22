@@ -60,7 +60,4 @@ component_file="${_root_dir}/scripts/components/${COMPONENT}.sh"
 
 source "$component_file"
 
-[[ "${component_name:-}" == "${COMPONENT}" ]] || \
-  die "component spec mismatch: expected ${COMPONENT}, got ${component_name:-<unset>}"
-
 dispatch "$@"

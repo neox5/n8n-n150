@@ -65,9 +65,50 @@ remove_dirs() {
   done
 }
 
-state_markers_exist() {
-  [[ -d "${STATE_DIR}" ]] && \
-  [[ -n "$(ls -A "${STATE_DIR}" 2>/dev/null)" ]]
+install_file() {
+  local src="$1"
+  local dst="$2"
+  local mode="${3:-0644}"
+  
+  cp "$src" "$dst"
+  chmod "$mode" "$dst"
+  
+  [[ "${SILENT:-false}" != "true" ]] && echo "[+] ${dst}"
+}
+
+remove_files() {
+  local f
+  for f in "$@"; do
+    rm -f -- "$f"
+    [[ "${SILENT:-false}" != "true" ]] && echo "[-] ${f}"
+  done
+}
+
+create_lock() {
+  date +%s > "${STATE_DIR}/${COMPONENT}.lock"
+}
+
+remove_lock() {
+  rm -f "${STATE_DIR}/${COMPONENT}.lock"
+}
+
+is_installed() {
+  local component="${1:-${COMPONENT}}"
+  [[ -f "${STATE_DIR}/${component}.lock" ]]
+}
+
+require_sys_init() {
+  [[ -f "${STATE_DIR}/sys.lock" ]] || die "system not initialized (run: ./run sys init)"
+}
+
+require_installed() {
+  local component="$1"
+  is_installed "$component" || die "${component} not installed (run: ./run ${component} install)"
+}
+
+installed_count() {
+  [[ -d "${STATE_DIR}" ]] || { echo 0; return; }
+  find "${STATE_DIR}" -name "*.lock" 2>/dev/null | wc -l
 }
 
 readonly -a BASE_CMDS=(

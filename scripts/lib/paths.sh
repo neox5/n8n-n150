@@ -14,3 +14,6 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # State directory (always exists after sys init)
 STATE_DIR="${VAR_ROOT}/state"
+
+# Systemd unit file directory
+SYSTEMD_UNIT_DIR="/etc/systemd/system"

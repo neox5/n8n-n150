@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-component_name="sys"
-
 supported_verbs=(
   init
   cleanup
@@ -18,19 +16,25 @@ c_init() {
     "${STATE_DIR}" \
     "${ETC_ROOT}" \
     "${SHARE_ROOT}"
+  
+  create_lock
 }
 
 c_cleanup() {
-  if state_markers_exist; then
-    echo "error: cannot cleanup - components still deployed:" >&2
-    ls "${STATE_DIR}" | sed 's/\.lock$//' | sed 's/^/  - /' >&2
+  local lock_count
+  lock_count=$(installed_count)
+  
+  if [[ "$lock_count" -ne 1 ]]; then
+    echo "error: cannot cleanup - components still installed:" >&2
+    ls "${STATE_DIR}"/*.lock 2>/dev/null | \
+      grep -v 'sys.lock$' | \
+      sed 's|.*/||; s|\.lock$||' | \
+      sed 's/^/  - /' >&2
     exit 1
   fi
   
-  remove_dirs \
-    "${VAR_ROOT}" \
-    "${ETC_ROOT}" \
-    "${SHARE_ROOT}"
+  remove_lock
+  remove_dirs "${VAR_ROOT}" "${ETC_ROOT}" "${SHARE_ROOT}"
 }
 
 c_tree() {
