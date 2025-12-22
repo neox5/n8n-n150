@@ -7,15 +7,21 @@ lifecycle_mode="systemd"
 unit_names=( "monitoring-stack.service" )
 
 supported_verbs=(
+  check
   install
-  uninstall
   secrets
   secrets-deploy
   start
+  status
   stop
   restart
-  status
-  check
+  uninstall
+)
+
+required_cmds=(
+  podman
+  podman-compose
+  rsync
 )
 
 requires_root_verbs=(
@@ -41,9 +47,6 @@ _install_unit_from_repo() {
 }
 
 c_install() {
-  require_root
-  require_cmd podman podman-compose rsync
-
   ensure_dir "${INSTALL_COMPOSE}"
   ensure_dir "${INSTALL_CONFIG}"
   ensure_dir "${INSTALL_CONFIG}/monitoring"
@@ -69,50 +72,46 @@ c_install() {
 }
 
 c_uninstall() {
-  require_root
-
   systemd_disable_stop "${unit_names[@]}"
   systemd_remove_unit "monitoring-stack.service"
   systemd_daemon_reload
 }
 
-c_secrets() {
-  require_cmd openssl sed tr head
-
-  local example="${REPO_CONFIG_DIR}/monitoring/monitoring.env.example"
-  local out="${REPO_CONFIG_DIR}/monitoring/monitoring.env"
-
-  [[ -f "$example" ]] || die "missing: ${example}"
-  [[ -e "$out" ]] && return 0
-
-  local GF_SECURITY_ADMIN_PASSWORD
-  GF_SECURITY_ADMIN_PASSWORD="$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c32)"
-
-  sed \
-    -e "s/GF_SECURITY_ADMIN_PASSWORD=CHANGE_ME/GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}/" \
-    "$example" > "$out"
-
-  chmod 600 "$out"
-}
-
 c_secrets_deploy() {
-  require_root
-
   local src="${REPO_CONFIG_DIR}/monitoring/monitoring.env"
   local dst="${INSTALL_CONFIG}/monitoring.env"
-  [[ -f "$src" ]] || die "missing: ${src} (run: make monitoring-secrets)"
+  [[ -f "$src" ]] || die "missing: ${src} (run: ctl monitoring secrets)"
+
+  # Validate no CHANGE_ME tokens
+  if secrets_has_change_me "$src"; then
+    die "secret file contains CHANGE_ME tokens: ${src}
+Edit the file and replace CHANGE_ME with actual secrets.
+Then retry: make monitoring-secrets-deploy"
+  fi
 
   deploy_file "$src" "$dst" "0600"
   chown root:root "$dst"
 }
 
 c_check() {
-  require_cmd systemctl
-
-  systemctl show -p LoadState --value "monitoring-stack.service" >/dev/null 2>&1 || \
+  systemctl_cmd show -p LoadState --value "monitoring-stack.service" >/dev/null 2>&1 || \
     die "systemd unit not found: monitoring-stack.service"
 
   [[ -f "${INSTALL_COMPOSE}/monitoring.yml" ]] || die "missing: ${INSTALL_COMPOSE}/monitoring.yml"
   [[ -f "${INSTALL_CONFIG}/monitoring.conf" ]] || die "missing: ${INSTALL_CONFIG}/monitoring.conf"
   [[ -f "${INSTALL_CONFIG}/monitoring/alloy-config.alloy" ]] || die "missing: ${INSTALL_CONFIG}/monitoring/alloy-config.alloy"
+  
+  # Runtime validation (only if service is active)
+  if systemctl_cmd is-active monitoring-stack.service >/dev/null 2>&1; then
+    
+    # Check VictoriaMetrics container
+    if ! podman exec victoriametrics wget -q -O- http://localhost:8428/health >/dev/null 2>&1; then
+      warn "victoriametrics container not responding"
+    fi
+    
+    # Check Grafana container
+    if ! podman exec grafana wget -q -O- http://localhost:3000/api/health >/dev/null 2>&1; then
+      warn "grafana container not responding"
+    fi
+  fi
 }

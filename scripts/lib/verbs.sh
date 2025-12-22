@@ -1,29 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Dispatcher template.
-# Expects:
-# - scripts/lib/paths.sh and scripts/lib/common.sh already sourced
-# - component spec sourced from scripts/components/<c>.sh which defines:
-#   component_name, supported_verbs (array)
-#   optional: lifecycle_mode=systemd|compose|custom
-#   optional: unit_names (array)
-#   optional: compose_file (repo-relative or absolute)
-#   optional: compose_project
-#   optional: requires_root_verbs (array)
-#
-# Hook naming: c_<verb>, e.g., c_install, c_secrets_deploy ...
+# Dispatcher (structure-first; minimal enforcement).
 
-readonly -a N150_GLOBAL_VERBS=(
+readonly -a N150_MUTATING_VERBS=(
   install
   uninstall
-  secrets
   secrets-deploy
   start
   stop
   restart
-  status
-  check
   run
 )
 
@@ -37,8 +23,16 @@ verb_supported_by_component() {
 }
 
 has_fn() {
-  local fn="$1"
-  declare -F "$fn" >/dev/null 2>&1
+  declare -F "$1" >/dev/null 2>&1
+}
+
+is_mutating_verb() {
+  local v="$1"
+  local m
+  for m in "${N150_MUTATING_VERBS[@]}"; do
+    [[ "$m" == "$v" ]] && return 0
+  done
+  return 1
 }
 
 default_systemd() {
@@ -54,41 +48,54 @@ default_systemd() {
   esac
 }
 
-default_compose() {
-  local verb="$1"
-
-  [[ -n "${compose_file:-}" ]] || return 1
-  require_cmd podman-compose
-
-  local cf="$compose_file"
-  if [[ "$cf" != /* ]]; then
-    cf="${ROOT_DIR}/${cf}"
-  fi
-  [[ -f "$cf" ]] || die "compose file not found: ${cf}"
-
-  local -a base=(podman-compose -f "$cf")
-  if [[ -n "${compose_project:-}" ]]; then
-    base+=( -p "$compose_project" )
-  fi
-
-  case "$verb" in
-    start)   run_cmd "${base[@]}" up -d ;;
-    stop)    run_cmd "${base[@]}" down ;;
-    restart) run_cmd "${base[@]}" down; run_cmd "${base[@]}" up -d ;;
-    status)  run_cmd "${base[@]}" ps ;;
-    *) return 1 ;;
-  esac
-}
-
 dispatch() {
   local verb="$1"; shift || true
 
-  verb_supported_by_component "$verb" || die "${verb} is not supported by ${component_name}"
+  verb_supported_by_component "$verb" || \
+    die "${verb} is not supported by ${component_name}"
 
-  # Enforce root where component requests it
-  require_root_for_verb "$verb"
+  # Check root requirement
+  if [[ -n "${requires_root_verbs[@]:-}" ]]; then
+    local rv
+    for rv in "${requires_root_verbs[@]}"; do
+      if [[ "$rv" == "$verb" ]]; then
+        require_root
+        break
+      fi
+    done
+  fi
 
-  local hook="c_${verb//-/_}"   # secrets-deploy -> c_secrets_deploy
+  # prereqs
+  check_base_prereqs
+  check_component_prereqs
+
+  # Mandatory validation before mutating verbs
+  if is_mutating_verb "$verb"; then
+    if has_fn c_check; then
+      local check_output
+      if ! check_output=$(c_check 2>&1); then
+        echo "ERROR: ${component_name} validation failed" >&2
+        echo "" >&2
+        echo "$check_output" >&2
+        echo "" >&2
+        echo "Fix issues above and retry." >&2
+        echo "Run: make ${component_name}-check" >&2
+        exit 1
+      fi
+    fi
+  fi
+
+  # secrets: component may override, otherwise use common system
+  if [[ "$verb" == "secrets" ]]; then
+    if has_fn c_secrets; then
+      c_secrets "$@"
+      return 0
+    fi
+    common_secrets_generate "${component_name}"
+    return 0
+  fi
+
+  local hook="c_${verb//-/_}"
 
   if has_fn "$hook"; then
     "$hook" "$@"
@@ -97,10 +104,7 @@ dispatch() {
 
   case "${lifecycle_mode:-custom}" in
     systemd)
-      if default_systemd "$verb"; then return 0; fi
-      ;;
-    compose)
-      if default_compose "$verb"; then return 0; fi
+      default_systemd "$verb" && return 0
       ;;
     custom) ;;
     *)

@@ -37,3 +37,21 @@ VAR_BACKUP_DIR="${N150_VAR_ROOT}/backup-data"
 # Common names
 N150_NETWORK_NAME="${N150_NETWORK_NAME:-n150-net}"
 SYSTEMD_UNIT_DIR="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}"
+
+# Warn if non-standard paths detected
+if [[ "$N150_SHARE_ROOT" != /usr/local/share/* ]] || \
+   [[ "$N150_ETC_ROOT" != /etc/* ]] || \
+   [[ "$N150_VAR_ROOT" != /var/* ]]; then
+  
+  cat >&2 <<EOF
+WARNING: Non-standard installation paths detected
+
+  SHARE: ${N150_SHARE_ROOT}
+  ETC:   ${N150_ETC_ROOT}
+  VAR:   ${N150_VAR_ROOT}
+
+This is supported but may require additional setup.
+Ensure these paths are writable and persistent.
+
+EOF
+fi

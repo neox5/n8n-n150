@@ -7,15 +7,21 @@ lifecycle_mode="systemd"
 unit_names=( "n8n-stack.service" )
 
 supported_verbs=(
+  check
   install
-  uninstall
   secrets
   secrets-deploy
   start
+  status
   stop
   restart
-  status
-  check
+  uninstall
+)
+
+required_cmds=(
+  podman
+  podman-compose
+  rsync
 )
 
 requires_root_verbs=(
@@ -42,9 +48,6 @@ _install_unit_from_repo() {
 }
 
 c_install() {
-  require_root
-  require_cmd podman podman-compose rsync
-
   # Directory structure (component-scoped)
   ensure_dir "${INSTALL_COMPOSE}"
   ensure_dir "${INSTALL_CONFIG}"
@@ -64,54 +67,46 @@ c_install() {
 }
 
 c_uninstall() {
-  require_root
-
   systemd_disable_stop "${unit_names[@]}"
   systemd_remove_unit "n8n-stack.service"
   systemd_daemon_reload
 }
 
-c_secrets() {
-  require_cmd openssl sed tr head
-
-  local example="${REPO_CONFIG_DIR}/n8n/n8n.env.example"
-  local out="${REPO_CONFIG_DIR}/n8n/n8n.env"
-
-  [[ -f "$example" ]] || die "missing: ${example}"
-  [[ -e "$out" ]] && return 0
-
-  local POSTGRES_PASSWORD
-  local N8N_ENCRYPTION_KEY
-  POSTGRES_PASSWORD="$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c32)"
-  N8N_ENCRYPTION_KEY="$(openssl rand -hex 32)"
-
-  sed \
-    -e "s/POSTGRES_PASSWORD=CHANGE_ME/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" \
-    -e "s/DB_POSTGRESDB_PASSWORD=CHANGE_ME/DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}/" \
-    -e "s/N8N_ENCRYPTION_KEY=CHANGE_ME/N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}/" \
-    -e "s|postgresql://n8n:CHANGE_ME@|postgresql://n8n:${POSTGRES_PASSWORD}@|" \
-    "$example" > "$out"
-
-  chmod 600 "$out"
-}
-
 c_secrets_deploy() {
-  require_root
-
   local src="${REPO_CONFIG_DIR}/n8n/n8n.env"
   local dst="${INSTALL_CONFIG}/n8n.env"
-  [[ -f "$src" ]] || die "missing: ${src} (run: make app-secrets)"
+  [[ -f "$src" ]] || die "missing: ${src} (run: ctl app secrets)"
+
+  # Validate no CHANGE_ME tokens
+  if secrets_has_change_me "$src"; then
+    die "secret file contains CHANGE_ME tokens: ${src}
+Edit the file and replace CHANGE_ME with actual secrets.
+Then retry: make app-secrets-deploy"
+  fi
 
   deploy_file "$src" "$dst" "0600"
   chown root:root "$dst"
 }
 
 c_check() {
-  require_cmd systemctl
-
-  systemctl show -p LoadState --value "n8n-stack.service" >/dev/null 2>&1 || \
+  # Static validation
+  systemctl_cmd show -p LoadState --value "n8n-stack.service" >/dev/null 2>&1 || \
     die "systemd unit not found: n8n-stack.service"
 
   [[ -f "${INSTALL_COMPOSE}/n8n.yml" ]] || die "missing: ${INSTALL_COMPOSE}/n8n.yml"
   [[ -f "${INSTALL_CONFIG}/n8n.conf" ]] || die "missing: ${INSTALL_CONFIG}/n8n.conf"
+  
+  # Runtime validation (only if service is active)
+  if systemctl_cmd is-active n8n-stack.service >/dev/null 2>&1; then
+    
+    # Check postgres container health
+    if ! podman exec n8n-postgres pg_isready -U n8n -q 2>/dev/null; then
+      die "postgres container not responding"
+    fi
+    
+    # Check n8n container health
+    if ! podman exec n8n wget -q -O- http://localhost:5678 >/dev/null 2>&1; then
+      warn "n8n container not responding on port 5678"
+    fi
+  fi
 }

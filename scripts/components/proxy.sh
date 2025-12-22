@@ -32,14 +32,16 @@ _install_unit_from_repo() {
   ensure_dir "$(dirname -- "$dst")"
 
   # Rewrite Caddyfile path to INSTALL_CONFIG/Caddyfile.
-  sed "s|/opt/n8n/config/caddy/Caddyfile|${INSTALL_CONFIG}/Caddyfile|g" \
-    "$unit_file" >"$dst"
+  sed_replace_literal \
+    "$unit_file" \
+    "/opt/n8n/config/caddy/Caddyfile" \
+    "${INSTALL_CONFIG}/Caddyfile" \
+    "$dst"
 
   chmod 0644 "$dst"
 }
 
 c_install() {
-  require_root
   require_cmd caddy
 
   ensure_dir "${INSTALL_CONFIG}"
@@ -53,8 +55,6 @@ c_install() {
 }
 
 c_uninstall() {
-  require_root
-
   systemd_disable_stop "${unit_names[@]}"
   systemd_remove_unit "caddy.service"
   systemd_daemon_reload

@@ -2,10 +2,24 @@
 set -euo pipefail
 
 # Entry point: ctl <component> <verb> [args]
-# Only "help" prints descriptive output.
+# Repo-local control plane only.
 
 _this_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 _root_dir="$(cd -- "${_this_dir}/../.." && pwd)"
+
+# --- Global preflight --------------------------------------------------------
+
+# Must run from inside the repo
+if [[ ! -f "${_root_dir}/scripts/bin/ctl" ]]; then
+  echo "error: ctl must be executed from within the repository" >&2
+  exit 1
+fi
+
+# Require bash (not sh, not dash)
+if [[ -z "${BASH_VERSION:-}" ]]; then
+  echo "error: bash is required" >&2
+  exit 1
+fi
 
 # shellcheck source=../lib/paths.sh
 source "${_root_dir}/scripts/lib/paths.sh"
@@ -40,9 +54,11 @@ verb="${1:-}"; shift || true
 component_file="${_root_dir}/scripts/components/${component}.sh"
 [[ -f "$component_file" ]] || die "unknown component: ${component}"
 
+# Load component spec
 # shellcheck source=/dev/null
 source "$component_file"
 
-[[ "${component_name:-}" == "${component}" ]] || die "component spec mismatch: expected ${component}, got ${component_name:-<unset>}"
+[[ "${component_name:-}" == "${component}" ]] || \
+  die "component spec mismatch: expected ${component}, got ${component_name:-<unset>}"
 
 dispatch "$verb" "$@"

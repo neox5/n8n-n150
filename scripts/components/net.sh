@@ -7,13 +7,17 @@ lifecycle_mode="systemd"
 unit_names=( "n150-net.service" )
 
 supported_verbs=(
+  check
   install
-  uninstall
   start
+  status
   stop
   restart
-  status
-  check
+  uninstall
+)
+
+required_cmds=(
+  podman
 )
 
 requires_root_verbs=(
@@ -31,24 +35,38 @@ _install_unit_from_repo() {
 }
 
 c_install() {
-  require_root
-  require_cmd podman
-
   _install_unit_from_repo "n150-net.service"
   systemd_daemon_reload
 }
 
 c_uninstall() {
-  require_root
-
   systemd_disable_stop "${unit_names[@]}"
   systemd_remove_unit "n150-net.service"
   systemd_daemon_reload
 }
 
 c_check() {
-  require_cmd podman
-  # The unit creates the network; check only validates podman presence and that the unit exists on disk.
-  systemctl show -p LoadState --value "n150-net.service" >/dev/null 2>&1 || \
+  # Check systemd unit exists
+  systemctl_cmd show -p LoadState --value "n150-net.service" >/dev/null 2>&1 || \
     die "systemd unit not found: n150-net.service"
+  
+  # Verify network actually exists
+  if ! podman network exists "${N150_NETWORK_NAME}" 2>/dev/null; then
+    die "podman network does not exist: ${N150_NETWORK_NAME}"
+  fi
+  
+  # Check for state divergence
+  local unit_active=false
+  systemctl_cmd is-active n150-net.service >/dev/null 2>&1 && unit_active=true
+  
+  local net_exists=false
+  podman network exists "${N150_NETWORK_NAME}" 2>/dev/null && net_exists=true
+  
+  if $unit_active && ! $net_exists; then
+    die "systemd unit active but network missing (was it removed externally?)"
+  fi
+  
+  if ! $unit_active && $net_exists; then
+    warn "network exists but systemd unit inactive"
+  fi
 }
