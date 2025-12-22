@@ -41,17 +41,34 @@ mode_to_symbolic() {
   echo "$perms"
 }
 
+log_operation() {
+  local action="$1"
+  local type="$2"
+  local mode="$3"
+  local path="$4"
+  
+  # Respect silent mode
+  [[ "${SILENT:-false}" == "true" ]] && return 0
+  
+  # Format: [action] type (perms) path
+  # or:     [action] type          path  (when mode is empty)
+  
+  if [[ -n "$mode" ]]; then
+    local symbolic
+    symbolic=$(mode_to_symbolic "$mode")
+    printf "[%s] %-4s (%s) %s\n" "$action" "$type" "$symbolic" "$path"
+  else
+    printf "[%s] %-4s %10s %s\n" "$action" "$type" "" "$path"
+  fi
+}
+
 ensure_dirs() {
   local mode="$1"; shift
-  local symbolic
-  symbolic=$(mode_to_symbolic "$mode")
   
   local d
   for d in "$@"; do
     mkdir -p -m "$mode" "$d"
-    if [[ "${SILENT:-false}" != "true" ]]; then
-      echo "[+] (${symbolic}) ${d}"
-    fi
+    log_operation "+" "dir" "$mode" "$d"
   done
 }
 
@@ -59,9 +76,7 @@ remove_dirs() {
   local d
   for d in "$@"; do
     rm -rf -- "$d"
-    if [[ "${SILENT:-false}" != "true" ]]; then
-      echo "[-] ${d}"
-    fi
+    log_operation "-" "dir" "" "$d"
   done
 }
 
@@ -73,14 +88,14 @@ install_file() {
   cp "$src" "$dst"
   chmod "$mode" "$dst"
   
-  [[ "${SILENT:-false}" != "true" ]] && echo "[+] ${dst}"
+  log_operation "+" "file" "$mode" "$dst"
 }
 
 remove_files() {
   local f
   for f in "$@"; do
     rm -f -- "$f"
-    [[ "${SILENT:-false}" != "true" ]] && echo "[-] ${f}"
+    log_operation "-" "file" "" "$f"
   done
 }
 
