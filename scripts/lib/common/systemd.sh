@@ -6,6 +6,16 @@ is_unit_active() {
   systemctl is-active --quiet "$unit_name"
 }
 
+require_unit_stopped() {
+  local unit_path="$1"
+  local unit_name
+  unit_name=$(basename "${unit_path}")
+  
+  if is_unit_active "${unit_name}"; then
+    die "component is running - stop it first (run: ./run ${COMPONENT} stop)"
+  fi
+}
+
 systemd_enable_unit() {
   local unit_path="$1"
   local unit_name=$(basename "$unit_path")

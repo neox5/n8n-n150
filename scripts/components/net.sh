@@ -37,6 +37,8 @@ c_uninstall() {
     return 0
   fi
   
+  require_unit_stopped "${NET_UNIT_DST}"
+  
   remove_files \
     "${NET_COMPOSE_DST}" \
     "${NET_UNIT_DST}"
