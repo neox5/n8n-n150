@@ -41,6 +41,8 @@ case "${1:-}" in
     exit $?
     ;;
   help|-h|--help)
+    source "${_root_dir}/scripts/lib/verbs.sh"
+    
     # Show system + component help
     printf "%s\n" \
       "Usage: run <command> [options]" \
@@ -54,8 +56,6 @@ case "${1:-}" in
       "  <component> <verb> [options]" \
       ""
     
-    local components
-    source "${_root_dir}/scripts/lib/verbs.sh"
     components=$(discover_components | tr '\n' ', ' | sed 's/, $//')
     echo "Available components: ${components}"
     echo "Run './run <component> help' for component-specific commands"
