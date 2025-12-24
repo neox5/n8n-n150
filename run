@@ -30,33 +30,57 @@ set -- "${CLEANED_ARGS[@]}"
 
 source "${_root_dir}/scripts/lib/paths.sh"
 source "${_root_dir}/scripts/lib/common.sh"
+
+# Handle system commands (no component required)
+case "${1:-}" in
+  init|cleanup|tree)
+    source "${_root_dir}/scripts/lib/system.sh"
+    VERB="${1}"
+    shift
+    "system_${VERB}" "$@"
+    exit $?
+    ;;
+  help|-h|--help)
+    # Show system + component help
+    printf "%s\n" \
+      "Usage: run <command> [options]" \
+      "" \
+      "System commands:" \
+      "  init                  Initialize system infrastructure" \
+      "  cleanup               Remove system infrastructure" \
+      "  tree [tree-options]   Show directory tree" \
+      "" \
+      "Component commands:" \
+      "  <component> <verb> [options]" \
+      ""
+    
+    local components
+    source "${_root_dir}/scripts/lib/verbs.sh"
+    components=$(discover_components | tr '\n' ', ' | sed 's/, $//')
+    echo "Available components: ${components}"
+    echo "Run './run <component> help' for component-specific commands"
+    exit 0
+    ;;
+esac
+
+# Handle component commands
 source "${_root_dir}/scripts/lib/verbs.sh"
-
-usage() {
-  local components
-  components=$(discover_components | tr '\n' ', ' | sed 's/, $//')
-  
-  printf "%s\n" \
-    "Usage: run <component> <command> [options]" \
-    "" \
-    "Available components: ${components}" \
-    "Run 'run <component> help' for component-specific commands"
-}
-
-if [[ "${1:-}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" || "${#}" -eq 0 ]]; then
-  usage
-  exit 0
-fi
 
 readonly COMPONENT="${1:-}"
 readonly VERB="${2:-help}"
 shift 2 || true
 
-[[ -n "${COMPONENT}" ]] || die "missing component"
+[[ -n "${COMPONENT}" ]] || {
+  echo "error: missing component or command" >&2
+  echo "Run './run help' for usage" >&2
+  exit 1
+}
 
 component_file="${_root_dir}/scripts/components/${COMPONENT}.sh"
-[[ -f "$component_file" ]] || die "unknown component: ${COMPONENT}"
+[[ -f "$component_file" ]] || {
+  echo "error: unknown component: ${COMPONENT}" >&2
+  exit 1
+}
 
 source "$component_file"
-
 dispatch "$@"

@@ -25,7 +25,8 @@ installed_count() {
 
 # Requirements
 require_sys_init() {
-  is_installed "sys" || die "system not initialized (run: ./run sys init)"
+  [[ -d "${STATE_DIR}" ]] || \
+    die "system not initialized (run: ./run init)"
 }
 
 require_installed() {

@@ -2,16 +2,21 @@
 
 ## Interface
 
-- `make <component>-<verb>`
-- `scripts/bin/n150 <component> <verb> [args]`
+- `./run <command> [options]`
+
+## System Commands
+
+- `init` - Initialize system infrastructure
+- `cleanup` - Remove system infrastructure  
+- `tree` - Show directory tree
 
 ## Components
 
-- `net`, `app`, `monitoring`, `proxy`, `backup`
+- `net`
 
-## Verbs
+## Component Verbs
 
-- `install`, `secrets`, `secrets-deploy`, `start`, `stop`, `restart`, `status`, `check`, `run`
+- `install`, `uninstall`, `start`, `stop`, `help`
 
 ## Output policy
 
