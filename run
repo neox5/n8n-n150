@@ -28,6 +28,11 @@ done
 export SILENT
 set -- "${CLEANED_ARGS[@]}"
 
+# Default to help if no arguments
+if [[ $# -eq 0 ]]; then
+  set -- help
+fi
+
 source "${_root_dir}/scripts/lib/paths.sh"
 source "${_root_dir}/scripts/lib/common.sh"
 
