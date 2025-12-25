@@ -13,6 +13,9 @@ readonly -a BASE_CMDS=(
   sed
   awk
   grep
+  systemctl
+  podman
+  tree
 )
 
 check_base_prereqs() {

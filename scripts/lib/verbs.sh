@@ -29,6 +29,24 @@ default_help() {
   done
 }
 
+default_verify() {
+  require_installed
+  
+  # Validate registry structure
+  registry_validate || {
+    echo "error: registry validation failed" >&2
+    return 1
+  }
+  
+  # Verify disk state matches registry
+  registry_verify || {
+    echo "error: registry verification failed" >&2
+    return 1
+  }
+  
+  echo "base verification passed"
+}
+
 default_uninstall() {
   if ! is_installed; then
     echo "not installed"
@@ -69,10 +87,14 @@ dispatch() {
   check_base_prereqs
   check_component_prereqs
 
-  # Resolve hook (default uninstall if not defined)
+  # Resolve hook (defaults for uninstall and verify)
   local hook="c_${VERB//-/_}"
   if [[ "$VERB" == "uninstall" ]] && ! has_fn "$hook"; then
     hook="default_uninstall"
+  fi
+  
+  if [[ "$VERB" == "verify" ]] && ! has_fn "$hook"; then
+    hook="default_verify"
   fi
 
   if has_fn "$hook"; then

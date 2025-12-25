@@ -97,7 +97,7 @@ system_tree() {
       echo "$dir (not created)"
       echo ""
     else
-      tree "${tree_args[@]}" "${dir}" 2>/dev/null || true
+      tree "${tree_args[@]}" "${dir}"
       echo ""
     fi
   done
