@@ -1,0 +1,127 @@
+---
+- name: Bootstrap server for Ansible management
+  hosts: all
+  gather_facts: no
+  become: no
+  
+  vars:
+    ansible_user_name: ansible
+    ansible_key_url: "{{ lookup('env', 'ANSIBLE_KEY_URL') | default('https://raw.githubusercontent.com/neox5/ssh-keys/main/automation/id_ed25519_ansible.pub', true) }}"
+    emergency_key_url: "{{ lookup('env', 'EMERGENCY_KEY_URL') | default('https://raw.githubusercontent.com/neox5/ssh-keys/main/emergency/id_ed25519_emergency.pub', true) }}"
+
+  tasks:
+    - name: Check Python is installed
+      raw: command -v python3
+      register: python_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Python if missing
+      raw: |
+        if command -v apt-get >/dev/null 2>&1; then
+          apt-get update && apt-get install -y python3
+        elif command -v dnf >/dev/null 2>&1; then
+          dnf install -y python3
+        else
+          echo "Unsupported package manager" >&2
+          exit 1
+        fi
+      when: python_check.rc != 0
+      changed_when: true
+
+    - name: Gather facts after Python installed
+      setup:
+
+    - name: Install sudo if missing
+      package:
+        name: sudo
+        state: present
+
+    - name: Create ansible user
+      user:
+        name: "{{ ansible_user_name }}"
+        shell: /bin/bash
+        create_home: yes
+        state: present
+
+    - name: Create .ssh directory for ansible user
+      file:
+        path: "/home/{{ ansible_user_name }}/.ssh"
+        state: directory
+        owner: "{{ ansible_user_name }}"
+        group: "{{ ansible_user_name }}"
+        mode: '0700'
+
+    - name: Fetch automation SSH key
+      get_url:
+        url: "{{ ansible_key_url }}"
+        dest: "/tmp/ansible_key.pub"
+        mode: '0644'
+
+    - name: Read automation key content
+      slurp:
+        src: /tmp/ansible_key.pub
+      register: ansible_key_content
+
+    - name: Add automation key to ansible user
+      authorized_key:
+        user: "{{ ansible_user_name }}"
+        key: "{{ ansible_key_content['content'] | b64decode }}"
+        state: present
+
+    - name: Remove temporary key file
+      file:
+        path: /tmp/ansible_key.pub
+        state: absent
+
+    - name: Configure passwordless sudo for ansible user
+      copy:
+        content: "{{ ansible_user_name }} ALL=(ALL) NOPASSWD:ALL\n"
+        dest: "/etc/sudoers.d/{{ ansible_user_name }}"
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Create .ssh directory for root
+      file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Fetch emergency SSH key
+      get_url:
+        url: "{{ emergency_key_url }}"
+        dest: /tmp/emergency_key.pub
+        mode: '0644'
+
+    - name: Read emergency key content
+      slurp:
+        src: /tmp/emergency_key.pub
+      register: emergency_key_content
+
+    - name: Add emergency key to root user
+      authorized_key:
+        user: root
+        key: "{{ emergency_key_content['content'] | b64decode }}"
+        state: present
+
+    - name: Remove temporary emergency key file
+      file:
+        path: /tmp/emergency_key.pub
+        state: absent
+
+    - name: Verify ansible user can sudo
+      command: sudo -n -l
+      become: yes
+      become_user: "{{ ansible_user_name }}"
+      changed_when: false
+
+    - name: Display next steps
+      debug:
+        msg:
+          - "Bootstrap complete!"
+          - "Test ansible user connection:"
+          - "  ssh -i ~/.ssh/id_ed25519_ansible ansible@{{ inventory_hostname }}"
+          - "Then run site.yml to complete deployment:"
+          - "  ansible-playbook -i inventory/prod playbooks/site.yml"
