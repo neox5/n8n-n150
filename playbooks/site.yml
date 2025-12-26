@@ -1,0 +1,7 @@
+---
+- name: Apply all roles to production hosts
+  hosts: all
+  become: yes
+  
+  roles:
+    - security_hardening

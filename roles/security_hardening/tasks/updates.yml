@@ -15,9 +15,9 @@
   when: security_unattended_upgrades
   notify: Restart dnf-automatic
 
-- name: Enable and start dnf-automatic-install timer
+- name: Enable and start dnf-automatic timer
   ansible.builtin.systemd:
-    name: dnf-automatic-install.timer
+    name: dnf-automatic.timer
     enabled: yes
     state: started
   when: security_unattended_upgrades

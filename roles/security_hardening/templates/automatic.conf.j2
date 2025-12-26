@@ -25,11 +25,11 @@ reboot = {{ 'never' if not security_unattended_upgrades_auto_reboot else 'when-n
 emit_via = stdio
 
 # System name in notifications
-system_name = {{ ansible_hostname }}
+system_name = {{ ansible_facts['hostname'] }}
 
 [email]
 # Email configuration (used if emit_via includes email)
-email_from = root@{{ ansible_fqdn }}
+email_from = root@{{ ansible_facts['fqdn'] }}
 email_to = root
 
 [base]

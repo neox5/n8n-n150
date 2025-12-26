@@ -1,0 +1,6 @@
+# Journald configuration override - managed by Ansible
+# Role: security_hardening
+
+[Journal]
+Storage={{ security_journald_storage }}
+MaxRetentionSec={{ security_journald_max_retention_sec }}
