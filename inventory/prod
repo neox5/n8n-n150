@@ -1,0 +1,7 @@
+[n150]
+n150-01 ansible_host=192.168.33.11
+
+[n150:vars]
+ansible_user=ansible
+ansible_ssh_private_key_file=~/.ssh/id_ed25519_ansible
+ansible_python_interpreter=/usr/bin/python3
