@@ -18,12 +18,3 @@
     state: enabled
     immediate: yes
   when: security_firewall_enabled
-
-- name: Configure additional ports in firewall
-  ansible.posix.firewalld:
-    port: "{{ item.port }}/{{ item.proto }}"
-    permanent: yes
-    state: enabled
-    immediate: yes
-  loop: "{{ security_firewall_allowed_ports | selectattr('port', 'ne', 22) | list }}"
-  when: security_firewall_enabled

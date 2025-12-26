@@ -7,8 +7,6 @@ security_ssh_allowed_users:
 # Firewall (restrictive baseline)
 security_firewall_enabled: yes
 security_firewall_default_policy: deny
-security_firewall_allowed_ports:
-  - { port: 22, proto: tcp, comment: "SSH" }
 
 # Automatic Security Updates
 security_unattended_upgrades: yes
