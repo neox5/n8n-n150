@@ -33,11 +33,7 @@ sops -d inventory/prod/host_vars/<host>/secrets.yml >/dev/null
 Bootstrap a fresh system (root SSH required):
 
 ```bash
-ANSIBLE_HOST_KEY_CHECKING=False \
-ansible-playbook playbooks/bootstrap.yml \
-  -i "<TARGET_IP>," \
-  --user root \
-  --ask-pass
+ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook playbooks/bootstrap.yml -i "<TARGET_IP>," --user root --ask-pass
 ```
 
 ---
