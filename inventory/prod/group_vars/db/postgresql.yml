@@ -1,6 +1,9 @@
 ---
 # PostgreSQL defaults for all database hosts (functional group: db)
 
+# Pin major version
+postgresql_version: 18
+
 # Security: Always use modern authentication
 postgresql_auth_method: "scram-sha-256"
 
