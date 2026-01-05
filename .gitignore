@@ -12,7 +12,7 @@
 roles/geerlingguy.*
 
 # VM disk images
-inventory/lab/vm/images/*.qcow2
+lab/vm/images/*.qcow2
 
 # Editor / OS noise
 .DS_Store
