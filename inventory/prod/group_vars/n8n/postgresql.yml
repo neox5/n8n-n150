@@ -11,6 +11,10 @@ postgresql_databases:
 postgresql_users:
   - name: n8n
     password: "{{ n8n_db_password }}"
-    db: n8n
-    priv: "ALL"
     role_attr_flags: "NOCREATEDB,NOSUPERUSER"
+
+postgresql_privs:
+  - db: n8n
+    roles: n8n
+    type: database
+    privs: ALL
