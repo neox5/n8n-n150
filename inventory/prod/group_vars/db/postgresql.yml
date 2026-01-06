@@ -1,33 +1,48 @@
 ---
-# PostgreSQL defaults for all database hosts (functional group: db)
+# ============================================================================
+# PostgreSQL: Service Configuration
+# File: group_vars/db/postgresql.yml
+# Role: geerlingguy.postgresql
+# ============================================================================
+#
+# This file contains service-level configuration for all database hosts:
+# - Version pinning
+# - Authentication method
+# - Service restart behavior
+#
+# Applied to: All hosts in 'db' group
+# ============================================================================
 
-# Pin major version
+# --- ROLE: Version Pinning ---
+# Pin PostgreSQL major version for explicit control
+# Version 18: Current stable (2024)
+# - JSON improvements (json_array_elements_recursive, etc.)
+# - Extended statistics enhancements
+# - Performance improvements for parallel queries
 postgresql_version: 18
 
-# Security: Always use modern authentication
+# --- ROLE: Authentication Method ---
+# Use modern password hashing (vs legacy md5)
+# scram-sha-256: Secure Challenge-Response Authentication Mechanism
+# - Resistant to rainbow table attacks
+# - FIPS compliance compatible
+# - Required for post-quantum migration path
 postgresql_auth_method: "scram-sha-256"
 
-# Service Management: Prefer reload on config changes
-postgresql_restarted_state: "reloaded"
+# --- ROLE: Configuration Change Behavior ---
+# How to handle service when configuration changes
+# Options: 'restarted' | 'reloaded'
+#
+# 'restarted': Full restart (safe, all settings applied, brief downtime)
+# 'reloaded': Signal reload (faster, but not all settings support reload)
+#
+# Recommendation: Use 'restarted' unless reload behavior explicitly tested
+# Reason: Some settings require restart (shared_buffers, max_connections)
+#         Using reload for these causes config drift (setting not applied)
+postgresql_restarted_state: "restarted"
 
-# Baseline performance defaults (generic)
-postgresql_global_config_options:
-  # Required by geerlingguy.postgresql role
-  - option: unix_socket_directories
-    value: '{{ postgresql_unix_socket_directories | join(",") }}'
-  - option: log_directory
-    value: "log"
-
-  # Conservative baseline (override role defaults where justified)
-  - option: shared_buffers
-    value: "256MB"
-  - option: wal_buffers
-    value: "16MB"
-  - option: min_wal_size
-    value: "1GB"
-  - option: max_wal_size
-    value: "4GB"
-
-  # Generic I/O baseline (demoted from hardware-specific)
-  - option: effective_io_concurrency
-    value: "2"
+# --- ROLE: Merge Base Configuration ---
+# Inherit universal defaults from group_vars/all/
+# Hardware-specific tuning added in hw_* groups
+# Application-specific settings added in app groups
+postgresql_global_config_options: "{{ postgresql_defaults.config_base }}"

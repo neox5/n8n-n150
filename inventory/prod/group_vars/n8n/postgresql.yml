@@ -1,20 +1,45 @@
 ---
-# Application-level database objects for n8n (group: n8n)
+# ============================================================================
+# PostgreSQL: n8n Application Database Objects
+# File: group_vars/n8n/postgresql.yml
+# Role: geerlingguy.postgresql
+# ============================================================================
+#
+# This file defines database objects required by n8n:
+# - Database: n8n
+# - User: n8n (with restricted privileges)
+# - Privileges: Full access to n8n database only
+#
+# Applied to: All hosts in 'n8n' group
+# ============================================================================
 
+# --- ROLE: Database Creation ---
 postgresql_databases:
   - name: n8n
-    lc_collate: "en_US.UTF-8"
-    lc_ctype: "en_US.UTF-8"
-    encoding: "UTF-8"
-    template: "template0"
+    # Use repository defaults for locale/encoding/template
+    lc_collate: "{{ postgresql_defaults.db.lc_collate }}"
+    lc_ctype: "{{ postgresql_defaults.db.lc_ctype }}"
+    encoding: "{{ postgresql_defaults.db.encoding }}"
+    template: "{{ postgresql_defaults.db.template }}"
+    # Database ownership
+    owner: n8n
+    state: present
 
+# --- ROLE: User Creation ---
+# Password is referenced from host_vars/n150-01/secrets.yml (SOPS-encrypted)
 postgresql_users:
   - name: n8n
     password: "{{ n8n_db_password }}"
+    # Restrict user to application-level operations (principle of least privilege)
+    # NOCREATEDB: Cannot create additional databases
+    # NOSUPERUSER: Not a superuser (cannot bypass row-level security, etc.)
     role_attr_flags: "NOCREATEDB,NOSUPERUSER"
+    state: present
 
+# --- ROLE: Privilege Grants ---
 postgresql_privs:
   - db: n8n
     roles: n8n
     type: database
     privs: ALL
+    state: present

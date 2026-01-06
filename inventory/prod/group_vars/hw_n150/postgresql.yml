@@ -1,36 +1,111 @@
 ---
-# Hardware tuning for N150 class hosts (group: hw_n150)
-# Hardware: 12GB RAM, 512GB SSD
+# ============================================================================
+# PostgreSQL: Performance Tuning for N150 Hardware
+# File: group_vars/hw_n150/postgresql.yml
+# Role: geerlingguy.postgresql
+# ============================================================================
+#
+# Hardware specifications:
+# - CPU: x86_64 (exact model TBD)
+# - RAM: 12GB
+# - Storage: 512GB SSD
+# - Network: Internal deployment (LAN)
+#
+# Tuning methodology:
+# - Memory: 15-25% RAM for shared_buffers, 50-75% for effective_cache_size
+# - WAL: Larger min/max for SSD (reduces checkpoint frequency)
+# - I/O: High concurrency + low random_page_cost for SSD
+#
+# References:
+# - https://pgtune.leopard.in.ua/ (DB Type: Mixed, Connections: 100)
+# - PostgreSQL 18 Documentation (Chapter 20: Server Configuration)
+# - https://wiki.postgresql.org/wiki/Tuning_Your_PostgreSQL_Server
+#
+# Applied to: All hosts in 'hw_n150' group
+# ============================================================================
 
-# Because this is a list, it REPLACES db/all definitions.
-# Therefore it must include the required entries again.
-postgresql_global_config_options:
-  # Required by role
-  - option: unix_socket_directories
-    value: '{{ postgresql_unix_socket_directories | join(",") }}'
-  - option: log_directory
-    value: "log"
+# --- REPO: Hardware-Specific Tuning ---
+postgresql_tuning:
+  # Memory settings (based on 12GB total RAM)
+  memory:
+    # shared_buffers: PostgreSQL's shared memory cache
+    # Guideline: 15-25% of RAM for dedicated database server
+    # Calculation: 12GB × 16.7% = 2GB
+    # Trade-off: More = less OS cache, but more PostgreSQL control
+    - option: shared_buffers
+      value: "2GB"
 
-  # Memory (tuned for 12GB RAM)
-  - option: shared_buffers
-    value: "2GB"
-  - option: effective_cache_size
-    value: "8GB"
-  - option: work_mem
-    value: "20MB"
-  - option: maintenance_work_mem
-    value: "512MB"
+    # effective_cache_size: Estimate of memory available for caching
+    # Guideline: 50-75% of RAM (informs query planner, doesn't allocate)
+    # Calculation: 12GB × 66.7% = 8GB
+    # Usage: Planner uses this to decide index vs seq scan
+    - option: effective_cache_size
+      value: "8GB"
 
-  # WAL (SSD, larger checkpoints)
-  - option: wal_buffers
-    value: "16MB"
-  - option: min_wal_size
-    value: "2GB"
-  - option: max_wal_size
-    value: "8GB"
+    # work_mem: Memory per sort/hash operation (per query operation)
+    # Guideline: (RAM - shared_buffers) / max_connections / 2-4
+    # Calculation: (12GB - 2GB) / 100 / 6 ≈ 20MB
+    # Trade-off: Higher = fewer disk sorts, but risk OOM if many concurrent queries
+    - option: work_mem
+      value: "20MB"
 
-  # SSD I/O
-  - option: effective_io_concurrency
-    value: "200"
-  - option: random_page_cost
-    value: "1.1"
+    # maintenance_work_mem: Memory for VACUUM, CREATE INDEX, etc.
+    # Guideline: 5-10% of RAM, capped at 2GB (diminishing returns beyond)
+    # Calculation: 12GB × 4.3% = 512MB
+    # Usage: Speeds up maintenance operations, rarely concurrent
+    - option: maintenance_work_mem
+      value: "512MB"
+
+  # WAL (Write-Ahead Log) settings
+  wal:
+    # wal_buffers: Memory for WAL before disk write
+    # Guideline: Auto (-1) uses 1/32 of shared_buffers, capped at 16MB
+    # Calculation: 2GB / 32 = 64MB, PostgreSQL caps at 16MB
+    # Explicit: Set 16MB to match auto-calculated cap
+    - option: wal_buffers
+      value: "16MB"
+
+    # min_wal_size: Minimum WAL disk usage before checkpoint trigger
+    # Guideline: Larger for write-heavy workloads (reduces checkpoint frequency)
+    # Calculation: 2GB (SSD handles large WAL well, balances write performance)
+    # Trade-off: Larger = fewer checkpoints (faster writes) but longer recovery
+    - option: min_wal_size
+      value: "2GB"
+
+    # max_wal_size: Maximum WAL size before forced checkpoint
+    # Guideline: 2-4× min_wal_size
+    # Calculation: 8GB (allows burst writes, SSD handles checkpoint I/O well)
+    # Trade-off: Larger = smoother write performance, more disk space used
+    - option: max_wal_size
+      value: "8GB"
+
+  # I/O settings (SSD-specific optimizations)
+  io:
+    # effective_io_concurrency: Concurrent I/O operations kernel should issue
+    # Guideline: 1-2 for HDD (seek time dominates), 200+ for SSD/NVMe
+    # Calculation: 200 (SSD benefits from high concurrency, no seek penalty)
+    # Usage: Bitmap heap scans use this for parallel I/O prefetch
+    - option: effective_io_concurrency
+      value: "200"
+
+    # random_page_cost: Cost estimate for non-sequential page fetch
+    # Guideline: 4.0 for HDD (random 4× slower), 1.0-1.5 for SSD (minimal difference)
+    # Calculation: 1.1 (slight penalty for random on SSD, informs query planner)
+    # Usage: Lower value encourages index scans (beneficial on SSD)
+    - option: random_page_cost
+      value: "1.1"
+
+# --- ROLE: Merge Tuning with Base Configuration ---
+# Combines:
+# 1. postgresql_defaults.config_base (from group_vars/all/)
+# 2. postgresql_tuning.* (defined above)
+#
+# Jinja2 list concatenation (+ operator) merges all settings
+# Order matters: Later duplicates override earlier (none expected here)
+postgresql_global_config_options: >-
+  {{
+    postgresql_defaults.config_base +
+    postgresql_tuning.memory +
+    postgresql_tuning.wal +
+    postgresql_tuning.io
+  }}
